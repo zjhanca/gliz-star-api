@@ -26,14 +26,24 @@ router.get('/cambios', async (req, res, next) => {
     const resultado = {};
 
     for (const [tabla, columna] of Object.entries(TABLAS_SYNC)) {
-      const tieneUsuarioId = tabla !== 'fidelidad' ? true : true; // todas tienen usuario_id o cliente asociado
-      const query = tabla === 'fidelidad'
-        ? `SELECT f.* FROM fidelidad f
-           JOIN clientes c ON c.id = f.cliente_id
-           WHERE f.${columna} > $1 ORDER BY f.${columna} ASC LIMIT 500`
-        : `SELECT * FROM ${tabla} WHERE usuario_id = $2 AND ${columna} > $1 ORDER BY ${columna} ASC LIMIT 500`;
+      let query;
+      let params;
 
-      const params = tabla === 'fidelidad' ? [desde] : [desde, usuarioId];
+      if (tabla === 'fidelidad') {
+        query = `SELECT f.* FROM fidelidad f
+           JOIN clientes c ON c.id = f.cliente_id
+           WHERE f.${columna} > $1 ORDER BY f.${columna} ASC LIMIT 500`;
+        params = [desde];
+      } else if (tabla === 'clientes') {
+        // Los clientes son compartidos entre los barberos de la cuenta
+        // (no tienen columna usuario_id) — no se filtran por usuario.
+        query = `SELECT * FROM clientes WHERE ${columna} > $1 ORDER BY ${columna} ASC LIMIT 500`;
+        params = [desde];
+      } else {
+        query = `SELECT * FROM ${tabla} WHERE usuario_id = $2 AND ${columna} > $1 ORDER BY ${columna} ASC LIMIT 500`;
+        params = [desde, usuarioId];
+      }
+
       const { rows } = await pool.query(query, params);
       resultado[tabla] = rows;
     }

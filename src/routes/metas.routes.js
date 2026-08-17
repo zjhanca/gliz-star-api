@@ -24,14 +24,21 @@ router.get('/', async (req, res, next) => {
 
 router.post('/', async (req, res, next) => {
   try {
-    const { nombre, monto_objetivo, fecha_limite, client_uuid, dispositivo_id } = req.body;
+    const { nombre, monto_objetivo, monto_actual, fecha_limite, client_uuid, dispositivo_id } = req.body;
     if (!nombre || monto_objetivo === undefined) {
       return res.status(400).json({ error: 'nombre y monto_objetivo son requeridos' });
     }
     const { rows } = await pool.query(
-      `INSERT INTO metas (usuario_id, nombre, monto_objetivo, fecha_limite, client_uuid)
-       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-      [req.usuario.id, nombre, monto_objetivo, fecha_limite || null, client_uuid || null]
+      `INSERT INTO metas (usuario_id, nombre, monto_objetivo, monto_actual, fecha_limite, client_uuid)
+       VALUES ($1,$2,$3,COALESCE($4,0),$5,$6)
+       ON CONFLICT (client_uuid) DO UPDATE SET
+         nombre = EXCLUDED.nombre,
+         monto_objetivo = EXCLUDED.monto_objetivo,
+         monto_actual = COALESCE(EXCLUDED.monto_actual, metas.monto_actual),
+         fecha_limite = EXCLUDED.fecha_limite,
+         actualizado_en = now()
+       RETURNING *`,
+      [req.usuario.id, nombre, monto_objetivo, monto_actual, fecha_limite || null, client_uuid || null]
     );
 
     await registrarSync({
@@ -61,6 +68,25 @@ router.put('/:id', async (req, res, next) => {
     });
 
     res.json(rows[0]);
+  } catch (err) { next(err); }
+});
+
+// DELETE /api/metas/:id — borrado lógico (sección 15)
+router.delete('/:id', async (req, res, next) => {
+  try {
+    const { dispositivo_id } = req.body || {};
+    const { rows } = await pool.query(
+      'UPDATE metas SET eliminado = TRUE, activa = FALSE WHERE id = $1 AND usuario_id = $2 RETURNING id, client_uuid',
+      [req.params.id, req.usuario.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Meta no encontrada' });
+
+    await registrarSync({
+      usuarioId: req.usuario.id, dispositivoId: dispositivo_id, tabla: 'metas',
+      clientUuid: rows[0].client_uuid, operacion: 'delete',
+    });
+
+    res.json({ ok: true });
   } catch (err) { next(err); }
 });
 

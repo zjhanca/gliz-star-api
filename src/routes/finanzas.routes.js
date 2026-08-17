@@ -72,4 +72,23 @@ router.post('/gastos', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// DELETE /api/finanzas/gastos/:id — borrado lógico (no borra el histórico)
+router.delete('/gastos/:id', async (req, res, next) => {
+  try {
+    const { dispositivo_id } = req.body || {};
+    const { rows } = await pool.query(
+      'UPDATE gastos SET eliminado = TRUE WHERE id = $1 AND usuario_id = $2 RETURNING id, client_uuid',
+      [req.params.id, req.usuario.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Gasto no encontrado' });
+
+    await registrarSync({
+      usuarioId: req.usuario.id, dispositivoId: dispositivo_id, tabla: 'gastos',
+      clientUuid: rows[0].client_uuid, operacion: 'delete',
+    });
+
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;

@@ -26,6 +26,10 @@ router.get('/', async (req, res, next) => {
 
 // POST /api/metodos-pago — crear método con imagen QR (sección 27-28)
 // Nada de nombres/imágenes hardcodeados: todo viene del body/archivo.
+// Usa ON CONFLICT (upsert) para que sea seguro reintentar: si la app ya
+// había logrado crearlo antes pero el teléfono no se enteró (ej. se cortó
+// la conexión justo después), reintentar ya no choca contra la base de
+// datos con "duplicate key" — simplemente actualiza el mismo registro.
 router.post('/', upload.single('qr'), async (req, res, next) => {
   try {
     const { nombre, descripcion, orden, client_uuid, dispositivo_id } = req.body;
@@ -39,7 +43,14 @@ router.post('/', upload.single('qr'), async (req, res, next) => {
 
     const { rows } = await pool.query(
       `INSERT INTO metodos_pago (usuario_id, nombre, descripcion, qr_imagen_url, orden, client_uuid)
-       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+       VALUES ($1,$2,$3,$4,$5,$6)
+       ON CONFLICT (client_uuid) DO UPDATE SET
+         nombre = EXCLUDED.nombre,
+         descripcion = EXCLUDED.descripcion,
+         qr_imagen_url = COALESCE(EXCLUDED.qr_imagen_url, metodos_pago.qr_imagen_url),
+         orden = EXCLUDED.orden,
+         actualizado_en = now()
+       RETURNING *`,
       [req.usuario.id, nombre, descripcion || null, qrUrl, orden || 0, client_uuid || null]
     );
 

@@ -14,6 +14,7 @@ const metodosPagoRoutes = require('./routes/metodosPago.routes');
 const fidelidadRoutes = require('./routes/fidelidad.routes');
 const finanzasRoutes = require('./routes/finanzas.routes');
 const metasRoutes = require('./routes/metas.routes');
+const comprasRoutes = require('./routes/compras.routes');
 const syncRoutes = require('./routes/sync.routes');
 const publicoRoutes = require('./routes/publico.routes');
 
@@ -37,6 +38,7 @@ app.use('/api/metodos-pago', metodosPagoRoutes);
 app.use('/api/fidelidad', fidelidadRoutes);
 app.use('/api/finanzas', finanzasRoutes);
 app.use('/api/metas', metasRoutes);
+app.use('/api/compras', comprasRoutes);
 app.use('/api/sync', syncRoutes);
 
 // --- Rutas públicas (usadas por la web informativa, sin login) ---

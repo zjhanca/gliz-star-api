@@ -1,7 +1,7 @@
 {
   "name": "gliz-star-api",
   "version": "1.0.0",
-  "description": "API REST para Gliz Star (app privada + web pública) — módulo compras incluido1",
+  "description": "API REST para Gliz Star (app privada + web pública) — módulo compras incluido2",
   "main": "src/server.js",
   "type": "commonjs",
   "scripts": {
